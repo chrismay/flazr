@@ -1,0 +1,14 @@
+    -----
+    a Java implementation of the RTMP protocol
+    
+Flazr
+
+    Flazr is a Java implementation of the {{{http://en.wikipedia.org/wiki/Real_Time_Messaging_Protocol}RTMP}} 
+    protocol used for streaming videos to Adobe Flash player based clients.
+    
+    Flazr can connect to an RTMP stream and save it to an {{{http://en.wikipedia.org/wiki/Flash_Video}FLV}} 
+    file for offline viewing.
+    
+    Documentation and instructions on how to use Flazr can be found here: 
+    {{http://apps.sourceforge.net/mediawiki/flazr}}
+
