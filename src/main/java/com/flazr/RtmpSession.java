@@ -20,6 +20,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import javax.crypto.Cipher;
+import javax.crypto.KeyAgreement;
+
 import org.apache.mina.common.IoSession;
 
 public class RtmpSession {		
@@ -27,6 +30,7 @@ public class RtmpSession {
 	private static final String RTMP_SESSION_KEY = "RTMP_SESSION_KEY";	
 	
 	private boolean serverHandshakeReceived;	
+	private boolean handshakeComplete;
 	private Map<Integer, Header> prevHeadersIn = new ConcurrentHashMap<Integer, Header>();
 	private Map<Integer, Header> prevHeadersOut = new ConcurrentHashMap<Integer, Header>();
 	private Map<Integer, Packet> prevPacketsIn = new ConcurrentHashMap<Integer, Packet>();
@@ -44,19 +48,36 @@ public class RtmpSession {
 	private String host;
 	private int port;	
 	private InvokeResultHandler invokeResultHandler;
+	private boolean encrypted;
+	private KeyAgreement keyAgreement;
+	private byte[] clientPublicKey;
+	private Cipher cipherIn;
+	private Cipher cipherOut;
+	private int swfSize;
+	private String swfHash;
+	private byte[] swfVerification;
+	private byte[] clientDigest;
+	private byte[] serverDigest;
 	
 	public RtmpSession() { }
 	
 	public RtmpSession(String host, int port, String app, String playName, String saveFileName) {
+		this(host, port, app, playName, saveFileName, false);
+	}
+	
+	public RtmpSession(String host, int port, String app, String playName, String saveFileName, boolean encrypted) {
 		this.host = host;
 		this.port = port;		
 		this.playName = playName;
-		flvWriter = new FlvWriter(saveFileName);		
-		String tcUrl = "rtmp://" + host + ":" + port + "/" + app;		
+		flvWriter = new FlvWriter(saveFileName);
+		if(encrypted) {
+			this.encrypted = true;
+		}
+		String tcUrl = (encrypted ? "rtmpe://" : "rtmp://") + host + ":" + port + "/" + app;		
 		connectParams = new HashMap<String, Object>();
 		connectParams.put("objectEncoding", 0);
 		connectParams.put("app", app);		
-		connectParams.put("flashVer", "WIN 9,0,115,0");
+		connectParams.put("flashVer", "WIN 9,0,124,2");
 		connectParams.put("fpad", false);
 		connectParams.put("tcUrl", tcUrl);
 		connectParams.put("audioCodecs", 1639);
@@ -90,7 +111,100 @@ public class RtmpSession {
 		return getInvokedMethods().get(invoke.getSequenceId());
 	}
 	
+	public int getNextInvokeId() {
+		return ++nextInvokeId;
+	}	
+	
+	public int incrementBytesRead(int size) {
+		bytesRead = bytesRead + size;
+		return bytesRead;
+	}	
+	
 	//==========================================================================
+	
+	public boolean isHandshakeComplete() {
+		return handshakeComplete;
+	}
+	
+	public void setHandshakeComplete(boolean handshakeComplete) {
+		this.handshakeComplete = handshakeComplete;
+	}
+	
+	public byte[] getServerDigest() {
+		return serverDigest;
+	}
+	
+	public void setServerDigest(byte[] serverDigest) {
+		this.serverDigest = serverDigest;
+	}
+	
+	public byte[] getClientDigest() {
+		return clientDigest;
+	}
+	
+	public void setClientDigest(byte[] clientDigest) {
+		this.clientDigest = clientDigest;
+	}
+	
+	public byte[] getSwfVerification() {
+		return swfVerification;
+	}
+	
+	public void setSwfVerification(byte[] swfVerification) {
+		this.swfVerification = swfVerification;
+	}
+	
+	public int getSwfSize() {
+		return swfSize;
+	}
+	
+	public void setSwfSize(int swfSize) {
+		this.swfSize = swfSize;
+	}
+	
+	public String getSwfHash() {
+		return swfHash;
+	}
+	
+	public void setSwfHash(String swfHash) {
+		this.swfHash = swfHash;
+	}
+	
+	public Cipher getCipherIn() {
+		return cipherIn;
+	}
+	
+	public void setCipherIn(Cipher cipherIn) {
+		this.cipherIn = cipherIn;
+	}
+	
+	public Cipher getCipherOut() {
+		return cipherOut;
+	}
+	
+	public void setCipherOut(Cipher cipherOut) {
+		this.cipherOut = cipherOut;
+	}
+	
+	public byte[] getClientPublicKey() {
+		return clientPublicKey;
+	}
+	
+	public void setClientPublicKey(byte[] clientPublicKey) {
+		this.clientPublicKey = clientPublicKey;
+	}
+	
+	public KeyAgreement getKeyAgreement() {
+		return keyAgreement;
+	}
+	
+	public void setKeyAgreement(KeyAgreement keyAgreement) {
+		this.keyAgreement = keyAgreement;
+	}
+	
+	public boolean isEncrypted() {
+		return encrypted;
+	}
 	
 	public InvokeResultHandler getInvokeResultHandler() {
 		return invokeResultHandler;
@@ -156,11 +270,6 @@ public class RtmpSession {
 		this.connectParams = connectParams;
 	}
 	
-	public int incrementBytesRead(int size) {
-		bytesRead = bytesRead + size;
-		return bytesRead;
-	}
-	
 	public int getBytesRead() {
 		return bytesRead;
 	}
@@ -175,10 +284,6 @@ public class RtmpSession {
 	
 	public Map<Integer, String> getInvokedMethods() {
 		return invokedMethods;
-	}
-	
-	public int getNextInvokeId() {
-		return ++nextInvokeId;
 	}
 	
 	public boolean isServerHandshakeReceived() {

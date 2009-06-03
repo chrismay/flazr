@@ -108,6 +108,14 @@ public class Packet {
     	}
     	return new Packet(header, body);    	    
     }	
+    
+    public static Packet swfVerification(byte[] bytes) {    	
+    	Header header = new Header(MEDIUM, 2, CONTROL_MESSAGE);    	
+    	ByteBuffer body = ByteBuffer.allocate(44);
+    	body.putShort((short) 0x001B);
+    	body.put(bytes);
+    	return new Packet(header, body);    	    
+    }    
 	
 	public Header getHeader() {
 		return header;

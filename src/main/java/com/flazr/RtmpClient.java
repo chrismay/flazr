@@ -35,22 +35,14 @@ public class RtmpClient extends IoHandlerAdapter {
 	private static final int CONNECT_TIMEOUT = 3000;	
 	private RtmpSession session;
 	
-	public static void main(String[] args) {
-		
-		// 125.252.226.62 | ondemand?_fcs_vhost=cp9950.edgefcs.net 
-		
-		String host = "68.180.128.37"; //"oxy.videolectures.net";
+	public static void main(String[] args) {		
+		String host = "localhost";
 		int port = 1935;
-		String app = "StreamCache"; // ondemand?_fcs_vhost=cp9950.edgefcs.net
-				
-		// 2008/active/iswc08_karlsruhe/swcbtc/iswc08_swcbtc_01
-		String playName = "p09r19/151/__S__/lauvsf/73350301?StreamID=73350301&xdata=NDI3MzQzMzg2NDk4ZWFlZj-201634733-0&pl_auth=36697f74ed4dbf3a5ef9fd7b9a649b3a&ht=180&b=7mb3q9d4n5jq6498eaef6&s=396502118&br=110&q=La5lvngAY9OUa.Yq6R2R.q&rd=new.music.yahoo.com&so=%2FMUSIC";		
-		String saveFileName = "test.flv";	
-		
-    	RtmpSession session = new RtmpSession(host, port, app, playName, saveFileName);
-    	
-    	connect(session);
-    	
+		String app = "vod";				
+		String playName = "sample";		
+		String saveFileName = "test.flv";			
+    	RtmpSession session = new RtmpSession(host, port, app, playName, saveFileName, true);    	
+    	connect(session);    	
 	}
 	
 	private RtmpClient() { }
@@ -59,7 +51,9 @@ public class RtmpClient extends IoHandlerAdapter {
 		RtmpClient client = new RtmpClient();
 		client.session = session;
 		SocketConnector connector = new SocketConnector();
-		connector.getFilterChain().addLast("codec", new ProtocolCodecFilter(new RtmpCodecFactory()));
+		// TODO use crypto only when required
+		connector.getFilterChain().addLast("crypto", new RtmpeIoFilter());
+		connector.getFilterChain().addLast("codec", new ProtocolCodecFilter(new RtmpCodecFactory()));		
 		connector.connect(new InetSocketAddress(session.getHost(), session.getPort()), client);		
 	}   
     

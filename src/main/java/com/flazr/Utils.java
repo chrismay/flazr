@@ -141,29 +141,6 @@ public class Utils {
 		return fromHex(temp.toCharArray());
 	}
 	
-	public static ByteBuffer removeChunkDelimiters(final byte[] bytes, final int chunkSize) {
-		ByteBuffer buffer = ByteBuffer.allocate(bytes.length);		
-		int i = 0;
-		for(byte b : bytes) {			
-			if(i == chunkSize) {				
-				i = 0;
-				continue;
-			}			
-			buffer.put(b);		
-			i++;
-		}		
-		buffer.flip();
-		return buffer;
-	}
-	
-	public static ByteBuffer toByteBuffer(final char[] chars, final int chunkSize) {
-		byte[] bytes = new byte[chars.length];
-		for(int i = 0; i < bytes.length; i++) {
-			bytes[i] = (byte) chars[i];
-		}
-		return removeChunkDelimiters(bytes, chunkSize);
-	}
-	
 	public static CharSequence readAsString(String fileName) {
 		return readAsString(new File(fileName));
 	}

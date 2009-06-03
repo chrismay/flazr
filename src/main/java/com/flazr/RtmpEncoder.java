@@ -33,12 +33,22 @@ public class RtmpEncoder implements ProtocolEncoder {
 		
 		if(object instanceof Handshake) {
 			Handshake hs = (Handshake) object;
-			out.write(hs.getData());
-			if(logger.isDebugEnabled()) {
-				String temp = session.isServerHandshakeReceived() ? "2" : "1";
-				logger.debug("sending handshake" + temp + ": " + hs.getData());
-			}
+			out.write(hs.getData());							
+			if(session.isServerHandshakeReceived()) {				
+				if(logger.isDebugEnabled()) {
+					logger.debug("sent client handshake part 2: " + hs.getData());
+				}
+			} else {
+				if(logger.isDebugEnabled()) {
+					logger.debug("sent client handshake part 1: " + hs.getData());
+				}
+			}			
 			return;
+		}
+		
+		if(!session.isHandshakeComplete()) {
+			logger.info("handshake complete, sending first packet after");
+			session.setHandshakeComplete(true);
 		}
                 
     	Packet packet = (Packet) object;

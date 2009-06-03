@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 
 public class RtmpDecoder extends CumulativeProtocolDecoder {		
 	
-	private static final Logger logger = LoggerFactory.getLogger(RtmpDecoder.class);				
+	private static final Logger logger = LoggerFactory.getLogger(RtmpDecoder.class);
 
 	@Override
 	protected boolean doDecode(IoSession ioSession, ByteBuffer in, ProtocolDecoderOutput _unused) {
@@ -40,8 +40,8 @@ public class RtmpDecoder extends CumulativeProtocolDecoder {
         		return false;
         	}
         	session.setServerHandshakeReceived(true);        	
-    		logger.info("received server handshake, sending reply");
-    		session.send(hs.generateClientRequest2());    		
+    		logger.info("server handshake processed, sending reply");
+    		session.send(hs.generateClientRequest2(session));    		
     		session.send(new Invoke("connect", 3, session.getConnectParams()));        	
 			return true;        	
         }                
@@ -50,11 +50,14 @@ public class RtmpDecoder extends CumulativeProtocolDecoder {
         Packet packet = new Packet();              
         
     	if(!packet.decode(in, session)) {
-    		logger.debug("buffering...");
+    		if(logger.isDebugEnabled()) {
+    			logger.debug("buffering...");
+    		}
     		in.position(position);
     		return false;
     	}    
     	
+    	// TODO use bytes read on IoSession ?
     	final int bytesReadNow = in.position() - position;    	
     	final int bytesReadSoFar = session.incrementBytesRead(bytesReadNow);		
 		
@@ -80,10 +83,7 @@ public class RtmpDecoder extends CumulativeProtocolDecoder {
 				session.setChunkSize(newChunkSize);
 				logger.info("new chunk size is: " + newChunkSize);
 				break;
-			case CONTROL_MESSAGE:				
-				if(logger.isDebugEnabled()) {					
-					logger.debug("received control message: " + packet);
-				}					
+			case CONTROL_MESSAGE:					
 				short type = data.getShort();				
 				if(type == 6) {
 					int time = data.getInt();
@@ -92,6 +92,13 @@ public class RtmpDecoder extends CumulativeProtocolDecoder {
 					Packet pong = Packet.ping(7, time, -1); // 7 == pong type
 					logger.info("client pong: " + pong);
 					session.send(pong);
+				} else if(type == 0x001A) {
+					logger.info("server swf verification request: " + packet);
+					Packet pong = Packet.swfVerification(session.getSwfVerification());
+					logger.info("client swf verification response: " + pong);
+					session.send(pong);
+				} else {					
+					logger.debug("not handling unknown control message type: " + type + " " + packet);						
 				}
 				break;
 			case AUDIO_DATA:
