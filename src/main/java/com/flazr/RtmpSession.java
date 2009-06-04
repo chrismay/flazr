@@ -16,6 +16,7 @@
 
 package com.flazr;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,8 +25,12 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyAgreement;
 
 import org.apache.mina.common.IoSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class RtmpSession {		
+public class RtmpSession {	
+	
+	private static final Logger logger = LoggerFactory.getLogger(RtmpSession.class);
 	
 	private static final String RTMP_SESSION_KEY = "RTMP_SESSION_KEY";	
 	
@@ -37,8 +42,7 @@ public class RtmpSession {
 	private Map<Integer, String> invokedMethods = new ConcurrentHashMap<Integer, String>();	
 	private int chunkSize = 128;
 	private int nextInvokeId;	
-	private int bytesReadLastSent;
-	private int bytesRead;	
+	private int bytesReadLastSent;	
 	private Map<String, Object> connectParams;
 	private String playName;
 	private int playStart;
@@ -54,10 +58,11 @@ public class RtmpSession {
 	private Cipher cipherIn;
 	private Cipher cipherOut;
 	private int swfSize;
-	private String swfHash;
+	private byte[] swfHash;
 	private byte[] swfVerification;
 	private byte[] clientDigest;
 	private byte[] serverDigest;
+	private byte[] serverResponse;
 	
 	public RtmpSession() { }
 	
@@ -113,14 +118,35 @@ public class RtmpSession {
 	
 	public int getNextInvokeId() {
 		return ++nextInvokeId;
+	}
+	
+	public void setSwfHash(String swfHash) {
+		this.swfHash = Utils.fromHex(swfHash);
 	}	
 	
-	public int incrementBytesRead(int size) {
-		bytesRead = bytesRead + size;
-		return bytesRead;
-	}	
+	public void initSwfVerification(String pathToLocalSwfFile) {
+		initSwfVerification(new File(pathToLocalSwfFile));
+	}
+	
+	public void initSwfVerification(File localSwfFile) {
+		logger.info("initializing swf verification data for: " + localSwfFile.getAbsolutePath());
+    	byte[] bytes = Utils.readAsByteArray(localSwfFile);
+    	logger.info("swf size: " + bytes.length);
+    	byte[] hash = Utils.sha256(bytes, Handshake.CLIENT_CONST);
+    	logger.info("swf hash: " + Utils.toHex(hash));
+    	swfSize = bytes.length;
+    	swfHash = hash;		
+	}
 	
 	//==========================================================================
+	
+	public byte[] getServerResponse() {
+		return serverResponse;
+	}
+	
+	public void setServerResponse(byte[] serverResponse) {
+		this.serverResponse = serverResponse;
+	}
 	
 	public boolean isHandshakeComplete() {
 		return handshakeComplete;
@@ -162,11 +188,11 @@ public class RtmpSession {
 		this.swfSize = swfSize;
 	}
 	
-	public String getSwfHash() {
+	public byte[] getSwfHash() {
 		return swfHash;
 	}
 	
-	public void setSwfHash(String swfHash) {
+	public void setSwfHash(byte[] swfHash) {
 		this.swfHash = swfHash;
 	}
 	
@@ -268,10 +294,6 @@ public class RtmpSession {
 	
 	public void setConnectParams(Map<String, Object> connectParams) {
 		this.connectParams = connectParams;
-	}
-	
-	public int getBytesRead() {
-		return bytesRead;
 	}
 	
 	public int getBytesReadLastSent() {

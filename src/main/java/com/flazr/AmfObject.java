@@ -80,7 +80,7 @@ public class AmfObject {
     		property.decode(in, decodeName);
     		add(property);
     	}
-    }
+    }        
     
     public static ByteBuffer encode(Object ... values) {
 		AmfObject o = new AmfObject();

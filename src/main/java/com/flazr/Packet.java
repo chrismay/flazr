@@ -19,6 +19,7 @@ package com.flazr;
 import static com.flazr.Header.Type.LARGE;
 import static com.flazr.Header.Type.MEDIUM;
 import static com.flazr.Header.Type.TINY;
+import static com.flazr.Packet.Type.BYTES_READ;
 import static com.flazr.Packet.Type.CONTROL_MESSAGE;
 import static com.flazr.Packet.Type.SERVER_BANDWIDTH;
 
@@ -91,6 +92,13 @@ public class Packet {
 		data = ByteBuffer.allocate(dataSize);
 	}
 	
+	public static Packet bytesRead(int value) {
+		Header header = new Header(MEDIUM, 2, BYTES_READ);
+		ByteBuffer body = ByteBuffer.allocate(4);
+		body.putInt(value);
+		return new Packet(header, body);		
+	}
+	
     public static Packet serverBw(int value) {    	
     	Header header = new Header(LARGE, 2, SERVER_BANDWIDTH);    	
     	ByteBuffer body = ByteBuffer.allocate(8);
@@ -148,7 +156,7 @@ public class Packet {
     	
     	int toReadRemaining = header.getSize();    	
     	if(prevPacket != null) {
-    		toReadRemaining -= prevPacket.getData().position();
+    		toReadRemaining -= prevPacket.data.position();
     	}
     	
 		final int chunkSize = session.getChunkSize();		
@@ -159,12 +167,14 @@ public class Packet {
 		}		
 		
 		session.getPrevHeadersIn().put(channelId, header);
+		
+		boolean isNewPacket = false; // just for debugging
     	
-		if (prevPacket == null) {			
+		if (prevPacket == null) {
+			isNewPacket = true;
 			prevPacket = new Packet(header, header.getSize());			
 			session.getPrevPacketsIn().put(channelId, prevPacket);			
-		} else {			
-			logger.debug("continuing prev header: " + prevPacket.header);			
+		} else {
 			header.setRelative(prevPacket.header.isRelative());
 		}
 		
@@ -172,26 +182,25 @@ public class Packet {
         	byte[] bytes = new byte[in.position() - position];
         	for(int i = 0; i < bytes.length; i++) {
         		bytes[i] = in.get(position + i);
-        	}       	
-        	logger.debug("decoded header: " + header +  " <-- " + Utils.toHex(bytes));
+        	}
+        	if(isNewPacket) {
+        		logger.debug("====================");
+        		logger.debug("starting new header: " + header +  " <-- " + Utils.toHex(bytes));
+        	} else {
+        		logger.debug("resumed prev header: " + header +  " <-- " + Utils.toHex(bytes) 
+        				+ "<-- " + prevPacket.header);
+        	}
         }		
 
-		data = prevPacket.getData();						
+		data = prevPacket.data;						
 		byte[] bytes = new byte[toReadNow];
 		in.get(bytes);		
-		data.put(bytes);
-		
-		if(logger.isDebugEnabled()) {
-			logger.debug("chunk bytes read {}: {}", toReadNow, Utils.toHex(bytes));
-		}		
+		data.put(bytes);		
 		
 		if(data.position() == header.getSize()) {
 			complete = true;
 			session.getPrevPacketsIn().remove(channelId);			
 			data.flip();
-			if(logger.isDebugEnabled()) {
-				logger.debug("decoded packet: " + toString());
-			}
 		}
 		
 		return true;		

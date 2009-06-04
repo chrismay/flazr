@@ -17,7 +17,7 @@
 package com.flazr;
 
 import static com.flazr.AmfProperty.Type.BOOLEAN;
-import static com.flazr.AmfProperty.Type.MIXED_ARRAY;
+import static com.flazr.AmfProperty.Type.MAP;
 import static com.flazr.AmfProperty.Type.NULL;
 import static com.flazr.AmfProperty.Type.NUMBER;
 import static com.flazr.AmfProperty.Type.OBJECT;
@@ -42,9 +42,10 @@ public class AmfProperty {
 	    OBJECT(0x03),
 	    NULL(0x05),
 	    UNDEFINED(0x06),
-	    MIXED_ARRAY(0x08),
+	    MAP(0x08),
 	    ARRAY(0x0A),
 	    DATE(0x0B),
+	    LONG_STRING(0x0C),
 	    UNSUPPORTED(0x0D);
 	    
 	    private final byte value;
@@ -103,7 +104,7 @@ public class AmfProperty {
 		} else if (o == null) {		
 			type = NULL;			
 		} else if (o instanceof Map) {
-			type = MIXED_ARRAY;
+			type = MAP;
 		} else {
 			throw new RuntimeException("unexpected parameter type: " + o.getClass());
 		}		
@@ -161,14 +162,18 @@ public class AmfProperty {
     			break;
     		case ARRAY:   
     			int arraySize = in.getInt();
-    			logger.debug("decoding nested array of size: " + arraySize);    			
+    			logger.debug("decoding nested array of size: " + arraySize);   
     			AmfObject array = new AmfObject();
-    			array.decode(in, false); // not name value pairs
+    			for(int i = 0; i < arraySize; i++) {
+    				AmfProperty prop = new AmfProperty();
+    				prop.decode(in, false);
+    				array.add(prop);
+    			}    			    			
     			value = array;
     			break;
-    		case MIXED_ARRAY:  
-    			int mixedArraySize = in.getInt();
-    			logger.debug("decoding nested mixed array of size: " + mixedArraySize);
+    		case MAP:  
+    			in.getInt(); // will always be 0
+    			logger.debug("decoding map (name value pairs)");
     			AmfObject map = new AmfObject();
     			map.decode(in, true);
     			value = map;
@@ -176,6 +181,12 @@ public class AmfProperty {
     		case DATE:
     			value = new Date((long) in.getDouble()); // TODO UTC offset
     			break;
+    		case LONG_STRING:
+    			int stringSize = in.getInt();   			    			
+    			byte[] bytes = new byte[stringSize];
+    			in.get(bytes);
+    			value = new String(bytes); // TODO UTF-8 ?
+    			break;    			
     		case UNDEFINED:    			
     		case UNSUPPORTED:
     			break;

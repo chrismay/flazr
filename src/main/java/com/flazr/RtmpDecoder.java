@@ -34,14 +34,13 @@ public class RtmpDecoder extends CumulativeProtocolDecoder {
 	
 	public static boolean decode(ByteBuffer in, RtmpSession session) {					
 		
-        if(!session.isServerHandshakeReceived()) {
-        	Handshake hs = new Handshake();
-        	if(!hs.decodeServerResponse(in, session)) {        		
+        if(!session.isServerHandshakeReceived()) {        	
+        	if(!Handshake.decodeServerResponse(in, session)) {        		
         		return false;
         	}
         	session.setServerHandshakeReceived(true);        	
     		logger.info("server handshake processed, sending reply");
-    		session.send(hs.generateClientRequest2(session));    		
+    		session.send(Handshake.generateClientRequest2(session));    		
     		session.send(new Invoke("connect", 3, session.getConnectParams()));        	
 			return true;        	
         }                
@@ -50,32 +49,19 @@ public class RtmpDecoder extends CumulativeProtocolDecoder {
         Packet packet = new Packet();              
         
     	if(!packet.decode(in, session)) {
-    		if(logger.isDebugEnabled()) {
-    			logger.debug("buffering...");
-    		}
     		in.position(position);
     		return false;
-    	}    
-    	
-    	// TODO use bytes read on IoSession ?
-    	final int bytesReadNow = in.position() - position;    	
-    	final int bytesReadSoFar = session.incrementBytesRead(bytesReadNow);		
-		
-		if(bytesReadSoFar > session.getBytesReadLastSent() + 600 * 1024) {
-			Header brHeader = new Header(Header.Type.MEDIUM, 2, Packet.Type.BYTES_READ);
-			ByteBuffer brBody = ByteBuffer.allocate(4);
-			brBody.putInt(bytesReadSoFar);
-			Packet brp = new Packet(brHeader, brBody);
-			logger.info("sending bytes read " + bytesReadSoFar + ": " + brp);			
-			session.send(brp);
-			session.setBytesReadLastSent(bytesReadSoFar);
-		}    	
+    	}    	
     	
 		if (!packet.isComplete()) { // but finished decoding chunk
 			return true;
+		}
+		
+		if(logger.isDebugEnabled()) {
+			logger.debug("packet complete: " + packet);			
 		}		
 		
-		ByteBuffer data = packet.getData();		   	
+		ByteBuffer data = packet.getData();
     	
 		switch(packet.getHeader().getPacketType()) {
 			case CHUNK_SIZE:
@@ -94,9 +80,15 @@ public class RtmpDecoder extends CumulativeProtocolDecoder {
 					session.send(pong);
 				} else if(type == 0x001A) {
 					logger.info("server swf verification request: " + packet);
-					Packet pong = Packet.swfVerification(session.getSwfVerification());
-					logger.info("client swf verification response: " + pong);
-					session.send(pong);
+					byte[] swfv = session.getSwfVerification();
+					if(swfv == null) {
+						logger.warn("not sending swf verification response! connect parameters not set"
+								+ ", server likely to stop responding");						
+					} else {
+						Packet pong = Packet.swfVerification(session.getSwfVerification());
+						logger.info("sending client swf verification response: " + pong);
+						session.send(pong);
+					}
 				} else {					
 					logger.debug("not handling unknown control message type: " + type + " " + packet);						
 				}
@@ -135,7 +127,7 @@ public class RtmpDecoder extends CumulativeProtocolDecoder {
 						session.getDecoderOutput().disconnect();
 					}
 				} else {
-					logger.warn("unhandled server invoke: " + serverInvoke);
+					logger.info("unhandled server invoke: " + serverInvoke);
 				}
 				break;
 			case BYTES_READ:
@@ -145,7 +137,7 @@ public class RtmpDecoder extends CumulativeProtocolDecoder {
 				break;				
 			default:
 				throw new RuntimeException("unknown packet type: "  + packet.getHeader());
-		}		
+		}	
 		
 		return true;
 	}  

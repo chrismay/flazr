@@ -28,58 +28,48 @@ public class RtmpeIoFilter extends IoFilterAdapter {
 
 	@Override
 	public void messageReceived(NextFilter nextFilter, IoSession ioSession, Object message) throws Exception {
-		RtmpSession session = RtmpSession.getFrom(ioSession);
+		RtmpSession session = RtmpSession.getFrom(ioSession);		
+    	final int bytesReadSoFar = (int) ioSession.getReadBytes();	// TODO what if bigger than int ?		
+		if(bytesReadSoFar > session.getBytesReadLastSent() + 600 * 1024) {
+			logger.info("sending bytes read " + bytesReadSoFar);			
+			session.send(Packet.bytesRead(bytesReadSoFar));
+			session.setBytesReadLastSent(bytesReadSoFar);
+		}		
 		if(!session.isEncrypted() || !session.isHandshakeComplete() || !(message instanceof ByteBuffer)) {
-			if(logger.isDebugEnabled()) {
-				logger.debug("not decrypting message received");
-			}
             nextFilter.messageReceived(ioSession, message);
             return;			
-		}
-		ByteBuffer in = (ByteBuffer) message;
-		byte[] encrypted = new byte[in.remaining()];
-		in.get(encrypted);
-		if(logger.isDebugEnabled()) {
-			in.rewind();
-			logger.debug("decrypting buffer: " + in);
-		}    	
-		in.release();
-		byte[] plain = session.getCipherIn().update(encrypted);		
-		ByteBuffer out = ByteBuffer.wrap(plain);
-		if(logger.isDebugEnabled()) {			
-			logger.debug("decrypted buffer: " + out);
-		}		
-		nextFilter.messageReceived(ioSession, out);
+		}				
+		ByteBuffer buf = (ByteBuffer) message;
+		int initial = buf.position();
+		byte[] encrypted = new byte[buf.remaining()];
+		buf.get(encrypted);		
+		byte[] plain = session.getCipherIn().update(encrypted);
+		buf.position(initial);
+		buf.put(plain);
+		buf.position(initial);
+		nextFilter.messageReceived(ioSession, buf);
 	}
 	
 	@Override
 	public void filterWrite(NextFilter nextFilter, IoSession ioSession, WriteRequest writeRequest) throws Exception {
 		RtmpSession session = RtmpSession.getFrom(ioSession);
 		if(!session.isEncrypted() || !session.isHandshakeComplete()) {
-			if(logger.isDebugEnabled()) {
-				logger.debug("not encrypting write request");
-			}
 			nextFilter.filterWrite(ioSession, writeRequest);
             return;			
-		}
-		
-        ByteBuffer in = (ByteBuffer) writeRequest.getMessage();
-        if (!in.hasRemaining()) {
-            // Ignore empty buffers
+		}		
+        ByteBuffer buf = (ByteBuffer) writeRequest.getMessage();
+        if (!buf.hasRemaining()) {
+            // ignore empty buffers
             nextFilter.filterWrite(ioSession, writeRequest);
-        } else {        	
-    		if(logger.isDebugEnabled()) {    			
-    			logger.debug("encrypting buffer: " + in);
-    		}         	
-			byte[] plain = new byte[in.remaining()];
-			in.get(plain);
-			in.release();
+        } else {       	
+        	int initial = buf.position();
+			byte[] plain = new byte[buf.remaining()];
+			buf.get(plain);			
 			byte[] encrypted = session.getCipherOut().update(plain);
-			ByteBuffer out = ByteBuffer.wrap(encrypted);
-    		if(logger.isDebugEnabled()) {    			
-    			logger.debug("encrypted buffer: " + out);
-    		}  			
-            nextFilter.filterWrite(ioSession, new WriteRequest(out, writeRequest.getFuture()));
+			buf.position(initial);
+			buf.put(encrypted);
+			buf.position(initial);
+            nextFilter.filterWrite(ioSession, new WriteRequest(buf, writeRequest.getFuture()));
         }		
 	}
 	

@@ -75,33 +75,35 @@ public class FlvWriter {
 		write(out);				
 	}	
 	
-	public void write(Packet packet) {	
+	public void write(Packet packet) {		
 		Header header = packet.getHeader();				
 		if(header.getSize() == 0) {
 			logger.debug("skipping packet where size == 0");
 			return;
 		}
+		if(logger.isDebugEnabled()) {
+			logger.debug("writing FLV data");
+		}
 		write(header.getPacketType(), packet.getData(), header.getTime(), header.isRelative());
 	}		
 	
-	public void writeFlvData(ByteBuffer data) {	
+	public void writeFlvData(ByteBuffer data) {
+		if(logger.isDebugEnabled()) {
+			logger.debug("writing FLV data (bulk)");
+		}
 		while(true) {
 			if(data.remaining() < 1) {
-				logger.debug("no data remaining, stop writing FLV bulk data");
 				break;
 			}			
 			Type packetType = Type.parseByte(data.get());			
-			int size = readInt24(data);			
-			int timestamp = readInt24(data);			
+			int size = Utils.readInt24(data);			
+			int timestamp = Utils.readInt24(data);			
 			data.getInt(); // 4 bytes of zeros (reserved)
 			byte[] bytes = new byte[size];
 			data.get(bytes);
 			ByteBuffer temp = ByteBuffer.wrap(bytes);
 			write(packetType, temp, timestamp, false);  
-			int endSize = data.getInt(); // FLV tag size (size + 11)	
-			if(endSize != (size + 11)) {
-				logger.debug("unexpected FLV tag size: " + endSize + ", expected: " + size);
-			}
+			data.getInt(); // FLV tag size (size + 11)
 		}		
 	}
 	
@@ -133,8 +135,8 @@ public class FlvWriter {
 		
 		out.clear();
 		out.put(packetType.byteValue());		
-		writeInt24(out, data.limit()); // data size
-		writeInt24(out, timestamp);
+		Utils.writeInt24(out, data.limit()); // data size
+		Utils.writeInt24(out, timestamp);
 		out.putInt(0); // 4 bytes of zeros (reserved)	
 		out.flip();
 		write(out);			
@@ -152,22 +154,6 @@ public class FlvWriter {
 		} catch(Exception e) {
 			throw new RuntimeException(e);
 		}
-	}
-	
-    public static int readInt24(ByteBuffer in) {
-		int val = 0;
-		val += (in.get() & 0xFF) * 256 * 256;
-		val += (in.get() & 0xFF) * 256;
-		val += (in.get() & 0xFF);
-		return val;
-	}	
-	
-	private static void writeInt24(ByteBuffer out, int value) {
-		byte[] bytes = new byte[3];
-		bytes[0] = (byte) ((value >>> 16) & 0x000000FF);
-		bytes[1] = (byte) ((value >>> 8) & 0x000000FF);
-		bytes[2] = (byte) (value & 0x00FF);
-		out.put(bytes);
 	}			
 	
 }

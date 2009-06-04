@@ -39,9 +39,10 @@ public class RtmpClient extends IoHandlerAdapter {
 		String host = "localhost";
 		int port = 1935;
 		String app = "vod";				
-		String playName = "sample";		
+		String playName = "mp4:sample1_150kbps.f4v";		
 		String saveFileName = "test.flv";			
-    	RtmpSession session = new RtmpSession(host, port, app, playName, saveFileName, true);    	
+    	RtmpSession session = new RtmpSession(host, port, app, playName, saveFileName, true); 
+    	session.initSwfVerification("videoPlayer.swf");
     	connect(session);    	
 	}
 	
@@ -51,7 +52,6 @@ public class RtmpClient extends IoHandlerAdapter {
 		RtmpClient client = new RtmpClient();
 		client.session = session;
 		SocketConnector connector = new SocketConnector();
-		// TODO use crypto only when required
 		connector.getFilterChain().addLast("crypto", new RtmpeIoFilter());
 		connector.getFilterChain().addLast("codec", new ProtocolCodecFilter(new RtmpCodecFactory()));		
 		connector.connect(new InetSocketAddress(session.getHost(), session.getPort()), client);		
@@ -75,7 +75,7 @@ public class RtmpClient extends IoHandlerAdapter {
 		ioSession.close().join(CONNECT_TIMEOUT);
 		RtmpSession session = RtmpSession.getFrom(ioSession);
 		session.getFlvWriter().close();		
-		logger.info("disconnected, bytes read: " + session.getBytesRead());
+		logger.info("disconnected, bytes read: " + ioSession.getReadBytes());
 		System.exit(0);    	
     }
     

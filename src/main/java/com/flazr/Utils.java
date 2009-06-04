@@ -21,35 +21,23 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.mina.common.ByteBuffer;
 
-public class Utils {		
+public class Utils {	
 	
-	public static int readInt24(ByteBuffer in) {
-		final byte a = in.get();
-		final byte b = in.get();
-		final byte c = in.get();
+    public static int readInt24(ByteBuffer in) {
 		int val = 0;
-		if (a < 0) {
-			val += ((a + 256) << 16);
-		} else {
-			val += (a << 16);
-		}
-		if (b < 0) {
-			val += ((b + 256) << 8);
-		} else {
-			val += (b << 8);
-		}
-		if (c < 0) {
-			val += c + 256;
-		} else {
-			val += c;
-		}
+		val += (in.get() & 0xFF) * 256 * 256;
+		val += (in.get() & 0xFF) * 256;
+		val += (in.get() & 0xFF);
 		return val;
-	}
+	}	
 	
 	public static void writeInt24(ByteBuffer out, int value) {
 		out.put((byte) (0xFF & (value >> 16)));
@@ -223,5 +211,16 @@ public class Utils {
         }
         return response;
     }	
+    
+	public static byte[] sha256(byte[] message, byte[] key) {
+        Mac mac;
+        try {
+			mac = Mac.getInstance("HmacSHA256");
+			mac.init(new SecretKeySpec(key, "HmacSHA256"));
+        } catch(Exception e) {
+        	throw new RuntimeException(e);
+        }
+		return mac.doFinal(message);
+	}    
 
 }
