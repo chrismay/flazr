@@ -20,6 +20,8 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyAgreement;
@@ -51,7 +53,7 @@ public class RtmpSession {
 	private DecoderOutput decoderOutput;
 	private String host;
 	private int port;	
-	private InvokeResultHandler invokeResultHandler;
+	private InvokeResultHandler invokeResultHandler = new DefaultInvokeResultHandler();
 	private boolean encrypted;
 	private KeyAgreement keyAgreement;
 	private byte[] clientPublicKey;
@@ -66,19 +68,50 @@ public class RtmpSession {
 	
 	public RtmpSession() { }
 	
-	public RtmpSession(String host, int port, String app, String playName, String saveFileName) {
-		this(host, port, app, playName, saveFileName, false);
+	public RtmpSession(String host, int port, String app, String playName, String saveAsFileName) {
+		this(host, port, app, playName, saveAsFileName, false);
 	}
 	
-	public RtmpSession(String host, int port, String app, String playName, String saveFileName, boolean encrypted) {
+	public RtmpSession(String host, int port, String app, String playName, String saveAsFileName, boolean encrypted) {
+		initConnectParams(host, port, app, playName, saveAsFileName, encrypted);
+	}
+	
+	public RtmpSession(String url, String saveAsFileName) {
+		Pattern pattern = Pattern.compile("(rtmp.?)://([^/:]+)(:[0-9]+)?/([^/]+)/(.*)");
+		Matcher matcher = pattern.matcher(url);
+		if(!matcher.matches()) {
+			throw new RuntimeException("invalid url: " + url);
+		}
+		logger.debug("parsing url: " + url);
+		String protocol = matcher.group(1);		
+		logger.debug("protocol = '" + protocol + "'");
+		String hostString = matcher.group(2);
+		logger.debug("host = '" + hostString + "'");		
+		String portString = matcher.group(3);
+		if(portString == null) {
+			logger.debug("port is null in url, will use default 1935");			
+		} else {
+			portString = portString.substring(1); // skip the ':'
+			logger.debug("port = '" + portString + "'");
+		}		
+		String appString = matcher.group(4);
+		logger.debug("app = '" + appString + "'");
+		String playString = matcher.group(5);
+		logger.debug("play = '" + playString + "'");
+		int portInt = portString == null ? 1935 : Integer.parseInt(portString);
+		boolean encrypted = protocol.equalsIgnoreCase("rtmpe");		
+		initConnectParams(hostString, portInt, appString, playString, saveAsFileName, encrypted);
+	}	
+	
+	private void initConnectParams(String host, int port, String app, String playName, String saveAsFileName, boolean encrypted) {
 		this.host = host;
 		this.port = port;		
 		this.playName = playName;
-		flvWriter = new FlvWriter(saveFileName);
+		flvWriter = new FlvWriter(saveAsFileName);
 		if(encrypted) {
 			this.encrypted = true;
 		}
-		String tcUrl = (encrypted ? "rtmpe://" : "rtmp://") + host + ":" + port + "/" + app;		
+		String tcUrl = (encrypted ? "rtmpe://" : "rtmp://") + host + ":" + port + "/" + app;				
 		connectParams = new HashMap<String, Object>();
 		connectParams.put("objectEncoding", 0);
 		connectParams.put("app", app);		
@@ -88,8 +121,7 @@ public class RtmpSession {
 		connectParams.put("audioCodecs", 1639);
 		connectParams.put("videoFunction", 1);		
 		connectParams.put("capabilities", 15);		
-		connectParams.put("videoCodecs", 252);	
-		invokeResultHandler = new DefaultInvokeResultHandler();
+		connectParams.put("videoCodecs", 252);		
 	}
 	
 	public static RtmpSession getFrom(IoSession ioSession) {
@@ -136,7 +168,7 @@ public class RtmpSession {
     	logger.info("swf hash: " + Utils.toHex(hash));
     	swfSize = bytes.length;
     	swfHash = hash;		
-	}
+	}		
 	
 	//==========================================================================
 	
