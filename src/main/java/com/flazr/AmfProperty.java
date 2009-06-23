@@ -85,6 +85,10 @@ public class AmfProperty {
 		return value;
 	}		
 	
+	public void setValue(Object value) {
+		this.value = value;
+	}
+	
 	public AmfProperty(Object o) {
 		this(null, o);
 	}		
@@ -220,6 +224,22 @@ public class AmfProperty {
 				AmfObject object = (AmfObject) value;
 				object.encode(out);		    			    					
 				break;
+			case MAP:
+				logger.debug("encoding nested map");				
+				out.putInt(0);	
+				AmfObject map = (AmfObject) value;
+				for(AmfProperty prop : map.getProperties()) {
+					prop.encode(out);
+				}
+				break;
+			case ARRAY:
+				logger.debug("encoding nested array");
+				AmfObject array = (AmfObject) value;
+				out.putInt(array.getProperties().size());	
+				for(AmfProperty prop : array.getProperties()) {
+					prop.encode(out);
+				}
+				break;				
 			default:
 				// ignoring other types client doesn't require for now
 				throw new RuntimeException("unexpected type: " + type);			
