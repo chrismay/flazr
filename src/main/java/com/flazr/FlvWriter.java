@@ -91,7 +91,11 @@ public class FlvWriter {
 			videoChannel = channelId;
 			logger.info("video channel set to: " + videoChannel);
 		}
-		channelTime = channelTime + header.getTime();		
+		if(header.isRelative()) {
+			channelTime = channelTime + header.getTime();	
+		} else {
+			channelTime = header.getTime();
+		}
 		channelTimeMap.put(channelId, channelTime);	
 		write(header.getPacketType(), packet.getData(), channelTime);
 	}		
