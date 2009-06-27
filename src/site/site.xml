@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <project name="Flazr">
     <bannerLeft>
-        <name>Flazr</name>
-        <href>http://flazr.com</href>         
+        <href>http://flazr.com</href>        
+        <src>template/flazr-logo.png</src>         
     </bannerLeft>    
     <bannerRight>
         <href>http://sourceforge.net/projects/flazr</href>

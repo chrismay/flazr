@@ -11,4 +11,24 @@ Flazr
     
     Documentation and instructions on how to use Flazr can be found here: 
     {{http://apps.sourceforge.net/mediawiki/flazr}}
+    
+* Important!  Please read:
+
+    Flazr is very similar to another SourceForge project called "rtmpdump" that was 
+    {{{http://linuxcentre.net/adobe-has-issued-a-dmca-removal-request-for-rtmpdump}recently taken offline}} 
+    due to {{{http://linuxcentre.net/rtmpdump-can-be-used-to-download-copyrighted-works-like-a-web-browser}ridiculous legal bullying by Adobe.}}
+    
+    One of the ways the community responded to this was to get "rtmpdump" successfully nominated into 
+    the SourceForge "Community Choice Awards 2009" under the category "Best Project for Multimedia".
+    
+    Help send a message to the world!  Please record your vote for "rtmpdump" at the link below:
+    
+    {{https://sourceforge.net/community/cca09/vote}}
+    
+    Although they caved in to the DMCA takedown request, kudos to SourceForge for allowing a project 
+    that currently shows as 
+    {{{https://sourceforge.net/projects/rtmpdump/}"Invalid Project"}} to end up as a finalist ;)
+    
+    Detailed analysis of this issue can be found here: {{http://lkcl.net/rtmp}}
+    
 

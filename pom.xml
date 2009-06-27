@@ -106,6 +106,13 @@
                     <target>1.5</target>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-site-plugin</artifactId>
+                <configuration>
+                    <templateFile>src/site/resources/template/maven-site.vm</templateFile>
+                </configuration>
+            </plugin>             
         </plugins>
     </build>
 
