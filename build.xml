@@ -78,7 +78,7 @@
         <pathconvert targetos="unix" property="lib.jars.path.unix" refid="lib.jars">
             <map from="${basedir}/target/flazr/lib" to="lib"/>
         </pathconvert>
-        <concat destfile="target/flazr/flazr.sh">java -cp ${lib.jars.path.unix} groovy.lang.GroovyShell %*</concat>
+        <concat destfile="target/flazr/flazr.sh">java -cp ${lib.jars.path.unix} groovy.lang.GroovyShell $*</concat>
         <pathconvert targetos="windows" property="lib.jars.path.windows" refid="lib.jars">
             <map from="${basedir}/target/flazr/lib" to="lib"/>
         </pathconvert>
