@@ -35,13 +35,8 @@ public class RtmpClient extends IoHandlerAdapter {
 	private static final int CONNECT_TIMEOUT = 3000;	
 	private RtmpSession session;
 	
-	public static void main(String[] args) {		
-		String host = "localhost";
-		int port = 1935;
-		String app = "vod";				
-		String playName = "mp4:sample1_150kbps.f4v";		
-		String saveFileName = "test.flv";			
-    	RtmpSession session = new RtmpSession(host, port, app, playName, saveFileName, true); 
+	public static void main(String[] args) {
+    	RtmpSession session = new RtmpSession("rtmpe://localhost/vod/mp4:sample1_150kbps.f4v", "test.flv");
     	session.initSwfVerification("videoPlayer.swf");
     	connect(session);    	
 	}
@@ -76,7 +71,7 @@ public class RtmpClient extends IoHandlerAdapter {
 		RtmpSession session = RtmpSession.getFrom(ioSession);
 		session.getFlvWriter().close();		
 		logger.info("disconnected, bytes read: " + ioSession.getReadBytes());
-		System.exit(0);    	
+		ioSession.close();
     }
     
 	private static class RtmpCodecFactory implements ProtocolCodecFactory {
