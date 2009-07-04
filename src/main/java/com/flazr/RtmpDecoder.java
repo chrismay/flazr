@@ -42,12 +42,16 @@ public class RtmpDecoder extends CumulativeProtocolDecoder {
     		logger.info("server handshake processed, sending reply");
     		session.send(Handshake.generateClientRequest2(session));    		
     		session.send(new Invoke("connect", 3, session.getConnectParams()));
-    		if(session.getSaveAsFileName() == null) {
-    			logger.info("'save as' file name is null, stream will not be saved");
-    			session.setOutputWriter(new DummyWriter(session.getPlayStart()));
-    		} else {
-    			session.setOutputWriter(new FlvWriter(session.getPlayStart(), session.getSaveAsFileName()));
-    		}    		
+    		if(session.getOutputWriter() == null) {
+    			OutputWriter writer = null;
+	    		if(session.getSaveAsFileName() == null) {
+	    			logger.info("'save as' file name is null, stream will not be saved");
+	    			writer = new DummyWriter(session.getPlayStart());
+	    		} else {
+	    			writer = new FlvWriter(session.getPlayStart(), session.getSaveAsFileName());
+	    		} 
+	    		session.setOutputWriter(writer);
+    		}
 			return true;        	
         }                
         
