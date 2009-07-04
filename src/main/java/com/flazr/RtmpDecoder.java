@@ -41,7 +41,13 @@ public class RtmpDecoder extends CumulativeProtocolDecoder {
         	session.setServerHandshakeReceived(true);        	
     		logger.info("server handshake processed, sending reply");
     		session.send(Handshake.generateClientRequest2(session));    		
-    		session.send(new Invoke("connect", 3, session.getConnectParams()));        	
+    		session.send(new Invoke("connect", 3, session.getConnectParams()));
+    		if(session.getSaveAsFileName() == null) {
+    			logger.info("'save as' file name is null, stream will not be saved");
+    			session.setOutputWriter(new DummyWriter(session.getPlayStart()));
+    		} else {
+    			session.setOutputWriter(new FlvWriter(session.getPlayStart(), session.getSaveAsFileName()));
+    		}    		
 			return true;        	
         }                
         
@@ -95,10 +101,10 @@ public class RtmpDecoder extends CumulativeProtocolDecoder {
 				break;
 			case AUDIO_DATA:
 			case VIDEO_DATA:				
-				session.getFlvWriter().write(packet);
+				session.getOutputWriter().write(packet);
 				break;
 			case FLV_DATA:
-				session.getFlvWriter().writeFlvData(data);				
+				session.getOutputWriter().writeFlvData(data);				
 				break;				
 			case NOTIFY:			
 				AmfObject notify = new AmfObject();
@@ -108,7 +114,7 @@ public class RtmpDecoder extends CumulativeProtocolDecoder {
 				if(notifyMethod.equals("onMetaData")) {
 					logger.info("notify is 'onMetadata', writing metadata");
 					data.rewind();
-					session.getFlvWriter().write(packet);
+					session.getOutputWriter().write(packet);
 				}
 				break;
 			case INVOKE:			

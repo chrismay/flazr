@@ -19,8 +19,6 @@ package com.flazr;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.channels.FileChannel;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.mina.common.ByteBuffer;
 import org.slf4j.Logger;
@@ -28,19 +26,17 @@ import org.slf4j.LoggerFactory;
 
 import com.flazr.Packet.Type;
 
-public class FlvWriter {
+public class FlvWriter implements OutputWriter {
 	
 	private static final Logger logger = LoggerFactory.getLogger(FlvWriter.class);
-	
+		
 	private ByteBuffer out;
 	private FileChannel channel;
 	private FileOutputStream fos;	
+	private WriterStatus status;	
 	
-	private Map<Integer, Integer> channelTimeMap = new ConcurrentHashMap<Integer, Integer>();
-	private int videoChannel = -1;
-	private double lastLoggedSeconds;		
-	
-	public FlvWriter(String fileName) {		
+	public FlvWriter(int seekTime, String fileName) {	
+		status = new WriterStatus(seekTime);
 		try {
 			File file = new File(fileName);
 			fos = new FileOutputStream(file);
@@ -51,7 +47,7 @@ public class FlvWriter {
 		}
 		out = ByteBuffer.allocate(1024);
 		out.setAutoExpand(true);		
-		writeHeader();
+		writeHeader();	
 	}
 	
 	public void close() {
@@ -61,11 +57,7 @@ public class FlvWriter {
 		} catch(Exception e) {
 			throw new RuntimeException(e);
 		}		
-		Integer time = channelTimeMap.get(videoChannel);
-		if(time == null) {
-			return;
-		}
-		logger.info("closed file, video duration: " + time / 1000 + " seconds");
+		status.logFinalVideoDuration();
 	}
 	
 	private void writeHeader() {
@@ -82,33 +74,16 @@ public class FlvWriter {
 	
 	public synchronized void write(Packet packet) {			
 		Header header = packet.getHeader();
-		final int channelId = header.getChannelId();		
-		Integer channelTime = channelTimeMap.get(channelId);		
-		if(channelTime == null) {
-			channelTime = 0;
-		}
-		if(videoChannel == -1 && header.getPacketType() == Type.VIDEO_DATA) {
-			videoChannel = channelId;
-			logger.info("video channel set to: " + videoChannel);
-		}
-		if(header.isRelative()) {
-			channelTime = channelTime + header.getTime();	
-		} else {
-			channelTime = header.getTime();
-		}
-		channelTimeMap.put(channelId, channelTime);	
-		write(header.getPacketType(), packet.getData(), channelTime);
+		int time = status.getChannelAbsoluteTime(header);
+		write(header.getPacketType(), packet.getData(), time);
 	}		
 	
 	public synchronized void writeFlvData(ByteBuffer data) {
 		while(data.hasRemaining()) {		
 			Type packetType = Type.parseByte(data.get());												
-			int size = readInt24(data);			
-			int timestamp = readInt24(data);
-			if(videoChannel == -1) {
-				throw new RuntimeException("video channel not initialized!");
-			}			
-			channelTimeMap.put(videoChannel, timestamp); // absolute
+			int size = Utils.readInt24(data);			
+			int timestamp = Utils.readInt24(data);
+			status.updateVideoChannelTime(timestamp);
 			data.getInt(); // 4 bytes of zeros (reserved)
 			byte[] bytes = new byte[size];
 			data.get(bytes);
@@ -135,15 +110,7 @@ public class FlvWriter {
 		out.clear();
 		out.putInt(size + 11); // previous tag size
 		out.flip();
-		write(out);	
-		//==========	
-		if(packetType == Type.VIDEO_DATA) {
-			double seconds = time / 1000;
-			if(seconds >= lastLoggedSeconds + 10) {
-				logger.info("video write progress: " + seconds + " seconds");
-				lastLoggedSeconds = seconds;
-			}
-		}
+		write(out);
 	}
 	
 	private void write(ByteBuffer buffer) {		
@@ -152,14 +119,6 @@ public class FlvWriter {
 		} catch(Exception e) {
 			throw new RuntimeException(e);
 		}
-	}
-	
-	private int readInt24(ByteBuffer in) {
-		int val = 0;
-		val += (in.get() & 0xFF) * 256 * 256;
-		val += (in.get() & 0xFF) * 256;
-		val += (in.get() & 0xFF);
-		return val;
 	}		
 	
 }

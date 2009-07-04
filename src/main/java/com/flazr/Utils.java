@@ -178,13 +178,13 @@ public class Utils {
 	}	
 	
 	public static void convert(String inFileName, String outFileName) {
-		FlvWriter flvWriter = new FlvWriter(outFileName);
+		FlvWriter flvWriter = new FlvWriter(0, outFileName);
 		DecoderOutput decoderOutput = new DecoderOutput() {
 			public void write(Object packet) { }			
 			public void disconnect() { }
 		};
 		RtmpSession session = new RtmpSession();
-		session.setFlvWriter(flvWriter);
+		session.setOutputWriter(flvWriter);
 		session.setDecoderOutput(decoderOutput);
 		session.setInvokeResultHandler(new DefaultInvokeResultHandler());
 		byte[] bytes = readAsByteArray(inFileName);						

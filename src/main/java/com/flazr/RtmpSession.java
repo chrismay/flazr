@@ -46,10 +46,11 @@ public class RtmpSession {
 	private int nextInvokeId;	
 	private int bytesReadLastSent;	
 	private Map<String, Object> connectParams;
+	private String saveAsFileName;
 	private String playName;
 	private int playStart;
 	private int playDuration = -2;
-	private FlvWriter flvWriter;
+	private OutputWriter outputWriter;
 	private DecoderOutput decoderOutput;
 	private String host;
 	private int port;	
@@ -106,8 +107,8 @@ public class RtmpSession {
 	private void initConnectParams(String host, int port, String app, String playName, String saveAsFileName, boolean encrypted) {
 		this.host = host;
 		this.port = port;		
-		this.playName = playName;
-		flvWriter = new FlvWriter(saveAsFileName);
+		this.playName = playName;	
+		this.saveAsFileName = saveAsFileName;
 		if(encrypted) {
 			this.encrypted = true;
 		}
@@ -171,6 +172,14 @@ public class RtmpSession {
 	}		
 	
 	//==========================================================================
+	
+	public void setSaveAsFileName(String saveAsFileName) {
+		this.saveAsFileName = saveAsFileName;
+	}
+	
+	public String getSaveAsFileName() {
+		return saveAsFileName;
+	}
 	
 	public byte[] getServerResponse() {
 		return serverResponse;
@@ -296,12 +305,12 @@ public class RtmpSession {
 		this.decoderOutput = decoderOutput;
 	}
 	
-	public FlvWriter getFlvWriter() {
-		return flvWriter;
+	public OutputWriter getOutputWriter() {
+		return outputWriter;
 	}	
 	
-	public void setFlvWriter(FlvWriter flvWriter) {
-		this.flvWriter = flvWriter;
+	public void setOutputWriter(OutputWriter outputWriter) {
+		this.outputWriter = outputWriter;
 	}
 	
 	public int getPlayDuration() {

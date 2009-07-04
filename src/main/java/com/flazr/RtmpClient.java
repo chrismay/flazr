@@ -18,6 +18,7 @@ package com.flazr;
 
 import java.net.InetSocketAddress;
 
+import org.apache.mina.common.CloseFuture;
 import org.apache.mina.common.IoHandlerAdapter;
 import org.apache.mina.common.IoSession;
 import org.apache.mina.filter.codec.ProtocolCodecFactory;
@@ -32,29 +33,33 @@ public class RtmpClient extends IoHandlerAdapter {
 	
 	private static final Logger logger = LoggerFactory.getLogger(RtmpClient.class);
 	
-	private static final int CONNECT_TIMEOUT = 3000;	
+	private IoSession ioSession;
 	private RtmpSession session;
+	private SocketConnector connector;
 	
 	public static void main(String[] args) {
     	RtmpSession session = new RtmpSession("rtmpe://localhost/vod/mp4:sample1_150kbps.f4v", "test.flv");
     	session.initSwfVerification("videoPlayer.swf");
+    	session.setPlayDuration(5000);
     	connect(session);    	
 	}
 	
-	private RtmpClient() { }
+	private RtmpClient(RtmpSession session) { 
+		this.session = session;
+		connector = new SocketConnector();
+		connector.getFilterChain().addLast("crypto", new RtmpeIoFilter());
+		connector.getFilterChain().addLast("codec", new ProtocolCodecFilter(new RtmpCodecFactory()));				
+	}
 	
 	public static void connect(RtmpSession session) {
-		RtmpClient client = new RtmpClient();
-		client.session = session;
-		SocketConnector connector = new SocketConnector();
-		connector.getFilterChain().addLast("crypto", new RtmpeIoFilter());
-		connector.getFilterChain().addLast("codec", new ProtocolCodecFilter(new RtmpCodecFactory()));		
-		connector.connect(new InetSocketAddress(session.getHost(), session.getPort()), client);		
+		RtmpClient client = new RtmpClient(session);	
+		client.connector.connect(new InetSocketAddress(session.getHost(), session.getPort()), client);		
 	}   
     
     @Override
     public void sessionOpened(IoSession ioSession) {
-    	session.setDecoderOutput(new MinaIoSessionOutput(ioSession));
+    	this.ioSession = ioSession;
+    	session.setDecoderOutput(new MinaIoSessionOutput(this));
     	session.putInto(ioSession);
     	logger.info("session opened, starting handshake");
         ioSession.write(Handshake.generateClientRequest1(session));      
@@ -63,15 +68,17 @@ public class RtmpClient extends IoHandlerAdapter {
     @Override
     public void exceptionCaught(IoSession ioSession, Throwable cause) throws Exception {    		
     	logger.error("exceptionCaught: ", cause);  
-    	disconnect(ioSession);    	
+    	disconnect();    	
     }
     
-    public static void disconnect(IoSession ioSession) {
-		ioSession.close().join(CONNECT_TIMEOUT);
-		RtmpSession session = RtmpSession.getFrom(ioSession);
-		session.getFlvWriter().close();		
-		logger.info("disconnected, bytes read: " + ioSession.getReadBytes());
-		ioSession.close();
+    public void disconnect() {		
+		session.getOutputWriter().close();		
+		logger.info("disconnecting, bytes read: " + ioSession.getReadBytes());
+		connector.setWorkerTimeout(0);		
+		CloseFuture future = ioSession.close();
+		logger.info("closing connection, waiting for thread exit");
+		future.join();
+		logger.info("connection closed successfully");	    	
     }
     
 	private static class RtmpCodecFactory implements ProtocolCodecFactory {
@@ -92,19 +99,19 @@ public class RtmpClient extends IoHandlerAdapter {
 	 * implementation used for connecting to a network stream
 	 */
 	private static class MinaIoSessionOutput implements DecoderOutput {
+				
+		private RtmpClient client;
 		
-		private IoSession ioSession;
-		
-		public MinaIoSessionOutput(IoSession ioSession) {
-			this.ioSession = ioSession;
+		public MinaIoSessionOutput(RtmpClient client) {			
+			this.client = client;
 		}
 				
 		public void write(Object packet) {
-			ioSession.write(packet);
+			client.ioSession.write(packet);
 		}
 
 		public void disconnect() {
-			RtmpClient.disconnect(ioSession);
+			client.disconnect();			
 		}		
 	}	
 }
