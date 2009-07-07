@@ -229,7 +229,12 @@ public class Packet {
 	
 	@Override
 	public String toString() {
-		return data.toString();
+		StringBuilder sb = new StringBuilder();
+		sb.append("[header: ").append(header);
+		sb.append(", complete: ").append(complete);
+		sb.append(", data: ").append(data);
+		sb.append(']');
+		return sb.toString();
 	}
 
 }

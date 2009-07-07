@@ -221,6 +221,16 @@ public class Utils {
         	throw new RuntimeException(e);
         }
 		return mac.doFinal(message);
-	}    
+	}   
+	
+	public static Packet hexToPacket(String hex) {
+		byte[] bytes = fromHex(hex);
+		ByteBuffer buf = ByteBuffer.wrap(bytes);
+		RtmpSession session = new RtmpSession();
+		session.setChunkSize(buf.limit());
+		Packet packet = new Packet();		
+		packet.decode(buf, session);		
+		return packet;
+	}
 
 }
