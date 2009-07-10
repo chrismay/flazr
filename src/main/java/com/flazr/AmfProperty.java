@@ -184,6 +184,7 @@ public class AmfProperty {
     			break;
     		case DATE:
     			value = new Date((long) in.getDouble()); // TODO UTC offset
+    			in.getShort(); // consume the timezone
     			break;
     		case LONG_STRING:
     			int stringSize = in.getInt();   			    			
